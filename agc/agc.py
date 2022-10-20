@@ -71,22 +71,133 @@ def get_arguments():
     return parser.parse_args()
 
 def read_fasta(amplicon_file, minseqlen):
-    pass
+    """
+    Read a zipped fasta file
+    Parameters
+    ----------
+    amplicon_file:
+    string
+        Name of the fasta file
+    minseqlen:
+    int
+        Length of the minimum sequence length
+    Returns
+    -------
+    Generator containing the selected sequences
+    """
+    isfile(amplicon_file)
+    seq  = ""
+    with gzip.open(amplicon_file, "rt") as file_in:
+        for line in file_in:
+            if line.startswith('>'):
+                if len(seq) >= minseqlen:
+                     yield seq
+                seq  = ""
+            else:
+                seq+=line.strip()
+        if len(seq) >= minseqlen:
+            yield seq
 
 
 def dereplication_fulllength(amplicon_file, minseqlen, mincount):
-    pass
+    """
+    Sort out the duplicated sequences
+    Parameters
+    ----------
+    amplicon_file:
+    string
+        Name of the fasta file
+    minseqlen:
+    int
+        Length of the minimum sequence length
+    mincount:
+    int
+        Minimum number of count
+    Returns
+    -------
+    Generator containing the selected sequences and their occurrences
+    """
+    seq_list = list(read_fasta(amplicon_file, minseqlen))
+    seq_uniq = set(seq)
+    res = []
+    for seq in uniq_seq:
+        count = seq.count(seq)
+        if count >= mincount:
+            res.append([seq, occur])
+    res = sorted(res, key=lambda x : x[1], reverse=True)
+    for i in res:
+        yield i
+
 
 def get_identity(alignment_list):
-    """Prend en une liste de séquences alignées au format ["SE-QUENCE1", "SE-QUENCE2"]
-    Retourne le pourcentage d'identite entre les deux."""
-    pass
+    """
+    Calculate the percentage of identity between two sequences
+    Parameters
+    ----------
+    amplicon_list:
+    list
+        Two sequences aligned
+    Returns
+    -------
+    Percentage of identity bewteen the sequences
+    """
+    nucl_id = 0
+    for i in range(len(alignment_list[0])):
+        if alignment_list[0][i] == alignment_list[1][i]:
+            nucl_id+=1
+    return nucl_id / len(alignment_list[0])*100
+
 
 def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
-    pass
+    """
+    Create a list of OTU with greedy algorithm
+    Parameters
+    ----------
+    amplicon_file:
+    string
+        Name of the fasta file
+    minseqlen:
+    int
+        Length of the minimum sequence length
+    mincount:
+    int
+        Minimum number of count
+    chunk_size:
+    int
+        Size of the chunk
+    kmer_size:
+    int
+        Size of the wanted kmer
+    Returns
+    -------
+    List of OTU with their occurrence
+    """
+    seq_list = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
+    OTU_list = [seq_list[0]]
+    for seq_1 in seq_list[1:]:
+        for seq_2 in OTU_list:
+            alignment = nw.global_align(seq_1[0], seq_2[0], gap_open=-1, 
+                                             gap_extend=-1, 
+                        matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
+        if get_identity(alignment) < 97:
+            OTU_list.append(seq_1)
+    return OTU_list
 
 def write_OTU(OTU_list, output_file):
-    pass
+    """
+    Calculate the percentage of identity between two sequences
+    Parameters
+    ----------
+    amplicon_list:
+    list
+        Two sequences aligned
+    Returns
+    -------
+    Percentage of identity bewteen the sequences
+    """
+    with open(output_file, "w") as file:
+        for i, (sequence, count) in enumerate(OTU_list):
+            file.write(f">OTU_{i+1} occurrence:{count}\n{textwrap.fill(sequence, width = 80)}\n")
 
 #==============================================================
 # Main program
@@ -97,7 +208,15 @@ def main():
     """
     # Get arguments
     args = get_arguments()
+    
     # Votre programme ici
+    #fasta = list(read_fasta(args.amplicon_file, args.minseqlen))
+    jsp = list(dereplication_fulllength(args.amplicon_file, args.minseqlen, args.mincount))
+    #jsp2 = abundance_greedy_clustering(args.amplicon_file, args.minseqlen, args.mincount, args.chunk_size, args.kmer_size)
+    
+    #print(list(jsp))
+    
+    #print(fasta)
 
 #==============================================================
 # Chimera removal section
