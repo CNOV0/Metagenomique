@@ -17,9 +17,7 @@ import argparse
 import sys
 import os
 import gzip
-import statistics
 import textwrap
-from collections import Counter
 # https://github.com/briney/nwalign3
 # ftp://ftp.ncbi.nih.gov/blast/matrices/
 import nwalign3 as nw
@@ -56,19 +54,16 @@ def get_arguments():
     parser = argparse.ArgumentParser(description=__doc__, usage=
                                      "{0} -h"
                                      .format(sys.argv[0]))
-    parser.add_argument('-i', '-amplicon_file', dest='amplicon_file', type=isfile, required=True, 
+    parser.add_argument('-i', '-amplicon_file', dest='amplicon_file', type=isfile, required=True,
                         help="Amplicon is a compressed fasta file (.fasta.gz)")
     parser.add_argument('-s', '-minseqlen', dest='minseqlen', type=int, default = 400,
                         help="Minimum sequence length for dereplication (default 400)")
     parser.add_argument('-m', '-mincount', dest='mincount', type=int, default = 10,
                         help="Minimum count for dereplication  (default 10)")
-    parser.add_argument('-c', '-chunk_size', dest='chunk_size', type=int, default = 100,
-                        help="Chunk size for dereplication  (default 100)")
-    parser.add_argument('-k', '-kmer_size', dest='kmer_size', type=int, default = 8,
-                        help="kmer size for dereplication  (default 10)")
     parser.add_argument('-o', '-output_file', dest='output_file', type=str,
                         default="OTU.fasta", help="Output file")
     return parser.parse_args()
+
 
 def read_fasta(amplicon_file, minseqlen):
     """
@@ -91,7 +86,7 @@ def read_fasta(amplicon_file, minseqlen):
         for line in file_in:
             if line.startswith('>'):
                 if len(seq) >= minseqlen:
-                     yield seq
+                    yield seq
                 seq  = ""
             else:
                 seq+=line.strip()
@@ -118,12 +113,12 @@ def dereplication_fulllength(amplicon_file, minseqlen, mincount):
     Generator containing the selected sequences and their occurrences
     """
     seq_list = list(read_fasta(amplicon_file, minseqlen))
-    seq_uniq = set(seq)
+    seq_uniq = set(seq_list)
     res = []
-    for seq in uniq_seq:
-        count = seq.count(seq)
+    for seq in seq_uniq:
+        count = seq_list.count(seq)
         if count >= mincount:
-            res.append([seq, occur])
+            res.append([seq, count])
     res = sorted(res, key=lambda x : x[1], reverse=True)
     for i in res:
         yield i
@@ -173,15 +168,16 @@ def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, 
     List of OTU with their occurrence
     """
     seq_list = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
-    OTU_list = [seq_list[0]]
+    otu_list = [seq_list[0]]
     for seq_1 in seq_list[1:]:
-        for seq_2 in OTU_list:
-            alignment = nw.global_align(seq_1[0], seq_2[0], gap_open=-1, 
-                                             gap_extend=-1, 
+        for seq_2 in otu_list:
+            alignment = nw.global_align(seq_1[0], seq_2[0], gap_open=-1,
+                                             gap_extend=-1,
                         matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
         if get_identity(alignment) < 97:
-            OTU_list.append(seq_1)
-    return OTU_list
+            otu_list.append(seq_1)
+    return otu_list
+
 
 def write_OTU(OTU_list, output_file):
     """
@@ -199,6 +195,7 @@ def write_OTU(OTU_list, output_file):
         for i, (sequence, count) in enumerate(OTU_list):
             file.write(f">OTU_{i+1} occurrence:{count}\n{textwrap.fill(sequence, width = 80)}\n")
 
+
 #==============================================================
 # Main program
 #==============================================================
@@ -208,46 +205,9 @@ def main():
     """
     # Get arguments
     args = get_arguments()
-    
+
     # Votre programme ici
-    #fasta = list(read_fasta(args.amplicon_file, args.minseqlen))
-    jsp = list(dereplication_fulllength(args.amplicon_file, args.minseqlen, args.mincount))
-    #jsp2 = abundance_greedy_clustering(args.amplicon_file, args.minseqlen, args.mincount, args.chunk_size, args.kmer_size)
-    
-    #print(list(jsp))
-    
-    #print(fasta)
-
-#==============================================================
-# Chimera removal section
-#==============================================================
-
-def get_unique(ids):
-    return {}.fromkeys(ids).keys()
-
-def common(lst1, lst2): 
-    return list(set(lst1) & set(lst2))
-
-def get_chunks(sequence, chunk_size):
-    """Split sequences in a least 4 chunks
-    """
-    pass
-
-def cut_kmer(sequence, kmer_size):
-    """Cut sequence into kmers"""
-    pass
-
-def get_unique_kmer(kmer_dict, sequence, id_seq, kmer_size):
-    pass
-
-def detect_chimera(perc_identity_matrix):
-    pass
-
-def search_mates(kmer_dict, sequence, kmer_size):
-    pass
-
-def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
-    pass
+    fasta = read_fasta(args.amplicon_file, args.minseqlen)
 
 
 if __name__ == '__main__':
